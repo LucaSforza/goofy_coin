@@ -1,8 +1,17 @@
 all: main
 
 CC = gcc
-CFLAGS = -Wall -Wextra
+CFLAGS = -Wall -Wextra -Wno-deprecated-declarations -Wno-unused-function -ggdb
 LIBS = -lssl -lcrypto
 
-main: main.c
-	$(CC) $(CFLAGS) -ggdb main.c ssl_digital_signature.c -o main $(LIBS)
+ssl_digital_signature.o: src/ssl_digital_signature.c
+	$(CC) $(CFLAGS) -c src/ssl_digital_signature.c -o ssl_digital_signature.o $(LIBS)
+
+strings_utils.o: src/strings_utils.c
+	$(CC) $(CFLAGS) -c src/strings_utils.c -o strings_utils.o	
+
+main.o: src/main.c 
+	$(CC) $(CFLAGS) -c src/main.c -o main.o
+
+main: main.o ssl_digital_signature.o strings_utils.o
+	$(CC) $(CFLAGS) strings_utils.o ssl_digital_signature.o main.o -o main $(LIBS)

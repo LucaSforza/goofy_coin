@@ -1,13 +1,15 @@
-#include <stdlib.h>
-#include <string.h>
 #include <openssl/evp.h>
 #include <openssl/pem.h>
 #include <openssl/rsa.h>
 #include <openssl/bio.h>
 #include <openssl/err.h>
 #include <openssl/ssl.h>
+
 #include "digital_signature.h"
+
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 // helper to print error + OpenSSL error queue
 static void print_openssl_error(const char *msg, const char *file, int line) {
@@ -19,7 +21,7 @@ static void print_openssl_error(const char *msg, const char *file, int line) {
 int ds_init(void) {
     if (OPENSSL_init_ssl(0, NULL) == 0) {
         print_openssl_error("OPENSSL_init_ssl failed", __FILE__, __LINE__);
-        return -1;
+        return 1;
     }
     OpenSSL_add_all_algorithms();
     ERR_load_crypto_strings();
@@ -32,30 +34,22 @@ int ds_deinit(void) {
     return 0;
 }
 
-// --- helper: alloc String_View ---
-static String_View *sv_alloc(size_t len) {
-    String_View *sv = malloc(sizeof(String_View) + len);
-    if (!sv) {
-        print_openssl_error("malloc failed in sv_alloc", __FILE__, __LINE__);
-        return NULL;
-    }
-    sv->length = len;
-    return sv;
-}
-
 // --- generate keys ---
-int ds_generate_Keys(size_t keysize, String_View **privateKey, String_View **publicKey) {
+int ds_generate_Keys(size_t keysize, String_Builder *privateKey, String_Builder *publicKey) {
     if (!privateKey || !publicKey) {
         print_openssl_error("arguments are NULL", __FILE__, __LINE__);
-        return -1;
-    } 
-    int rc = -1;
+        return 1;
+    }
 
+    int rc = 1;
     EVP_PKEY *pkey = NULL;
     RSA *rsa = NULL;
     BIGNUM *bn = NULL;
     BIO *bio_priv = NULL, *bio_pub = NULL;
     char *priv_buf = NULL, *pub_buf = NULL;
+
+    size_t prev_priv_count = privateKey->count;
+    size_t prev_pub_count  = publicKey->count;
 
     pkey = EVP_PKEY_new();
     rsa = RSA_new();
@@ -68,7 +62,7 @@ int ds_generate_Keys(size_t keysize, String_View **privateKey, String_View **pub
     if (!BN_set_word(bn, RSA_F4)) {
         print_openssl_error("BN_set_word failed", __FILE__, __LINE__);
         goto cleanup;
-    } 
+    }
     if (!RSA_generate_key_ex(rsa, (int)keysize, bn, NULL)) {
         print_openssl_error("RSA_generate_key_ex failed", __FILE__, __LINE__);
         goto cleanup;
@@ -77,7 +71,7 @@ int ds_generate_Keys(size_t keysize, String_View **privateKey, String_View **pub
         print_openssl_error("EVP_PKEY_assign_RSA failed", __FILE__, __LINE__);
         goto cleanup;
     }
-    rsa = NULL; // ora posseduto da pkey
+    rsa = NULL; // now owned by pkey
 
     bio_priv = BIO_new(BIO_s_mem());
     bio_pub  = BIO_new(BIO_s_mem());
@@ -102,55 +96,57 @@ int ds_generate_Keys(size_t keysize, String_View **privateKey, String_View **pub
         goto cleanup;
     }
 
-    *privateKey = sv_alloc((size_t)priv_len);
-    *publicKey  = sv_alloc((size_t)pub_len);
-    if (!*privateKey || !*publicKey) {
-        print_openssl_error("sv_alloc failed", __FILE__, __LINE__);
-        goto cleanup;
-    }
+    // append raw bytes and a terminating null so the builder can be used as a C-string if needed
+    sb_append_buf(privateKey, priv_buf, (size_t)priv_len);
+    // sb_append_null(privateKey);
 
-    memcpy((*privateKey)->data, priv_buf, priv_len);
-    memcpy((*publicKey)->data, pub_buf, pub_len);
+    sb_append_buf(publicKey, pub_buf, (size_t)pub_len);
+    // sb_append_null(publicKey);
 
     rc = 0;
 
 cleanup:
+    if (rc != 0) {
+        // rollback counts (we don't attempt to free/reduce capacity)
+        privateKey->count = prev_priv_count;
+        publicKey->count  = prev_pub_count;
+    }
+
     if (bn) BN_free(bn);
     if (rsa) RSA_free(rsa);
     if (pkey) EVP_PKEY_free(pkey);
     if (bio_priv) BIO_free(bio_priv);
     if (bio_pub) BIO_free(bio_pub);
-    if (rc != 0) {
-        free(*privateKey); free(*publicKey);
-    }
+
     return rc;
 }
 
 // --- signature ---
-int ds_signature(const String_View *secret, const char *message, String_View **sign) {
-    if (!secret || !message || !sign) {
+int ds_signature(String_View secret, String_View message, String_Builder *sign) {
+    if (!secret.data || !message.data || !sign) {
         print_openssl_error("arguments are NULL", __FILE__, __LINE__);
-        return -1;
+        return 1;
     }
-    int rc = -1;
-    BIO *bio = BIO_new_mem_buf(secret->data, (int)secret->length);
+    int rc = 1;
+
+    BIO *bio = BIO_new_mem_buf((void *)secret.data, (int)secret.count);
     if (!bio) {
         print_openssl_error("BIO_new_mem_buf failed", __FILE__, __LINE__);
-        return -1;
+        return 1;
     }
 
     EVP_PKEY *pkey = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL);
     BIO_free(bio);
     if (!pkey) {
         print_openssl_error("PEM_read_bio_PrivateKey failed", __FILE__, __LINE__);
-        return -1;
+        return 1;
     }
 
     EVP_MD_CTX *ctx = EVP_MD_CTX_new();
     if (!ctx) {
         print_openssl_error("EVP_MD_CTX_new failed", __FILE__, __LINE__);
         EVP_PKEY_free(pkey);
-        return -1;
+        return 1;
     }
 
     if (EVP_DigestSignInit(ctx, NULL, EVP_sha256(), NULL, pkey) <= 0) {
@@ -158,7 +154,7 @@ int ds_signature(const String_View *secret, const char *message, String_View **s
         goto cleanup;
     }
 
-    if (EVP_DigestSignUpdate(ctx, message, strlen(message)) <= 0) {
+    if (EVP_DigestSignUpdate(ctx, message.data, message.count) <= 0) {
         print_openssl_error("EVP_DigestSignUpdate failed", __FILE__, __LINE__);
         goto cleanup;
     }
@@ -169,18 +165,22 @@ int ds_signature(const String_View *secret, const char *message, String_View **s
         goto cleanup;
     }
 
-    *sign = sv_alloc(siglen);
-    if (!*sign) {
-        print_openssl_error("sv_alloc failed", __FILE__, __LINE__);
+    unsigned char *sig_buf = malloc(siglen);
+    if (!sig_buf) {
+        print_openssl_error("malloc failed for signature buffer", __FILE__, __LINE__);
         goto cleanup;
     }
 
-    if (EVP_DigestSignFinal(ctx, (unsigned char *)(*sign)->data, &siglen) <= 0) {
+    if (EVP_DigestSignFinal(ctx, sig_buf, &siglen) <= 0) {
         print_openssl_error("EVP_DigestSignFinal (data) failed", __FILE__, __LINE__);
-        free(*sign); *sign = NULL; goto cleanup;
+        free(sig_buf);
+        goto cleanup;
     }
 
-    (*sign)->length = siglen;
+    sb_append_buf(sign, (const char *)sig_buf, siglen);
+    // sb_append_null(sign);
+
+    free(sig_buf);
     rc = 0;
 
 cleanup:
@@ -190,14 +190,14 @@ cleanup:
 }
 
 // --- verify ---
-int ds_isValid(const String_View *publicKey, const char *message, const String_View *sign) {
-    if (!publicKey || !message || !sign) {
+int ds_isValid(String_View publicKey, String_View message, String_View sign) {
+    if (!publicKey.data || !message.data || !sign.data) {
         print_openssl_error("arguments are NULL", __FILE__, __LINE__);
         return -1;
     }
     int rc = -1;
 
-    BIO *bio = BIO_new_mem_buf(publicKey->data, (int)publicKey->length);
+    BIO *bio = BIO_new_mem_buf((void *)publicKey.data, (int)publicKey.count);
     if (!bio) {
         print_openssl_error("BIO_new_mem_buf failed", __FILE__, __LINE__);
         return -1;
@@ -217,12 +217,12 @@ int ds_isValid(const String_View *publicKey, const char *message, const String_V
         print_openssl_error("EVP_DigestVerifyInit failed", __FILE__, __LINE__);
         goto cleanup;
     }
-    if (EVP_DigestVerifyUpdate(ctx, message, strlen(message)) <= 0) {
+    if (EVP_DigestVerifyUpdate(ctx, message.data, message.count) <= 0) {
         print_openssl_error("EVP_DigestVerifyUpdate failed", __FILE__, __LINE__);
         goto cleanup;
     }
 
-    int v = EVP_DigestVerifyFinal(ctx, (const unsigned char *)sign->data, sign->length);
+    int v = EVP_DigestVerifyFinal(ctx, (const unsigned char *)sign.data, sign.count);
     if (v == 1) rc = 1;
     else if (v == 0) rc = 0;
     else {

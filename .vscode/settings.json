@@ -2,6 +2,18 @@
     "C_Cpp.errorSquiggles": "disabled",
     "files.associations": {
         "*.java": "java",
-        "digital_signature.h": "c"
+        "digital_signature.h": "c",
+        "stdarg.h": "c",
+        "__bit_reference": "c",
+        "__node_handle": "c",
+        "bitset": "c",
+        "deque": "c",
+        "limits": "c",
+        "locale": "c",
+        "optional": "c",
+        "ratio": "c",
+        "vector": "c",
+        "__locale": "cpp",
+        "unordered_map": "c"
     }
 }
