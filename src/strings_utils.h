@@ -65,23 +65,17 @@ typedef struct {
         (da)->count += (new_items_count);                                                       \
     } while (0)
 
-// Append a sized buffer to a string builder
-#define sb_append_buf(sb, buf, size) da_append_many(sb, buf, size)
-
-// Append a NULL-terminated string to a string builder
-#define sb_append_cstr(sb, cstr)  \
-    do {                              \
-        const char *s = (cstr);       \
-        size_t n = strlen(s);         \
-        da_append_many(sb, s, n); \
-    } while (0)
-
-// Append a single NULL character at the end of a string builder. So then you can
-// use it a NULL-terminated C string
-#define sb_append_null(sb) da_append_many(sb, "", 1)
-
 SUDEF int sb_read_entire_file(const char *path, String_Builder *sb);
 SUDEF int sb_appendf(String_Builder *sb, const char *fmt, ...) SU_PRINTF_FORMAT(2, 3);
+/**
+ * @param sb string builder where append null at the end
+ * @note This function will not change the length of the String Builder
+ */
+SUDEF void sb_append_null(String_Builder *sb);
+// Append a NULL-terminated string to a string builder
+SUDEF void sb_append_cstr(String_Builder *sb, const char *cstr);
+// Append a sized buffer to a string builder
+SUDEF void sb_append_buf(String_Builder *sb, void *buf, size_t size);
 
 typedef struct {
     size_t count;
@@ -100,7 +94,7 @@ SUDEF String_View sv_from_cstr(const char *cstr);
 SUDEF String_View sv_from_parts(const char *data, size_t count);
 SUDEF int sv_save_to_file(String_View view, const char *file_name);
 // sb_to_sv() enables you to just view String_Builder as String_View
-#define sb_to_sv(sb) sv_from_parts((sb).items, (sb).count)
+SUDEF String_View sb_to_sv(String_Builder sb);
 #define sb_free(sb) SU_FREE(sb.items)
 
 #endif // STRINGS_UTILS_H_

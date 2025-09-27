@@ -161,3 +161,22 @@ int sv_save_to_file(String_View sv, const char *file_name) {
     size_t value = fwrite(sv.data, 1, sv.count, file);
     return value;
 }
+
+void sb_append_buf(String_Builder *sb, void *buf, size_t size) {
+    da_append_many(sb, buf, size);
+}
+
+void sb_append_null(String_Builder *sb) {
+    sb_append_buf(sb, "", 1);
+    sb->count--;
+}
+
+void sb_append_cstr(String_Builder *sb, const char *cstr) {
+    const char *s = (cstr);
+    size_t n = strlen(s);
+    sb_append_buf(sb, s, n);
+}
+
+String_View sb_to_sv(String_Builder sb) {
+    return sv_from_parts(sb.items, sb.count);
+}
