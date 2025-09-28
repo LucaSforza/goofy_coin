@@ -1,6 +1,59 @@
 #ifndef GOOFY_COIN_H_
 #define GOOFY_COIN_H_
 
+#include "strings_utils.h"
+
+#include <stddef.h>
+#include <stdint.h>
+
+int gc_create_coin(const char *priv_key_path, String_View id, const char *sign_path);
+int gc_tranfer_coin(const char *sender_priv_key, const char *receiver_pub_key, const char *sign_path);
+int gc_is_valid(const char *coin_path, const char *sign_path, const char *pub_key);
+
+// TODO: aggiungere mining
+
+// TODO: quelli dopo vedere se saranno utili o no
+
+typedef struct {
+    int64_t nounce;
+    char hashpointer[256];
+    int64_t length;
+    char items[];
+} Block;
+
+int gc_sign_block(Block *_this, String_Builder *sign);
+int gc_compute_hash(Block *_this, String_View *sign, String_Builder *hash);
+
+typedef struct {
+    Block *items;
+    size_t length;
+    size_t capacity;
+} Block_Chain;
+
+typedef struct {
+    const char *ip_address;
+    String_View pub_key;
+} Ip_Entry;
+
+typedef struct {
+    Ip_Entry *items;
+    size_t count;
+    size_t capacity;
+} Ip_Table;
+
+int gc_load_to_network(const char *ip_address, Block_Chain *bc, Ip_Table *ips);
+int gc_send_transaction(Ip_Table ips, const char *transaction_path, const char *sign_path);
+
+typedef enum {
+    ET_NONE,
+    ET_TRANSACTION,
+    ET_REQUEST_CONNECTION,
+    ET_ADD_NEW_BLOCK,
+    ET_LENGTH,
+} Event_Type;
+
+int gc_event_handler(Event_Type type,Block_Chain *block_chian, String_View data, String_View sign, String_View pub_key);
+
 
 
 #endif // GOOFY_COIN_H_

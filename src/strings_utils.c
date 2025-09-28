@@ -86,6 +86,31 @@ String_View sv_chop_by_delim(String_View *sv, char delim) {
     return result;
 }
 
+String_View sv_chop_by_spaces(String_View *sv) {
+    size_t i = 0;
+    while (i < sv->count && !isspace(sv->data[i])) {
+        i += 1;
+    }
+
+    String_View result = sv_from_parts(sv->data, i);
+
+    if (i < sv->count) {
+        sv->count -= i + 1;
+        sv->data  += i + 1;
+    } else {
+        sv->count -= i;
+        sv->data  += i;
+    }
+    i = 0;
+    while (i < sv->count && isspace(sv->data[i])) {
+        i += 1;
+    }
+    sv->count -= i;
+    sv->data += i;
+
+    return result;
+}
+
 String_View sv_chop_left(String_View *sv, size_t n) {
     if (n > sv->count) {
         n = sv->count;
@@ -157,12 +182,28 @@ String_View sv_from_parts(const char *data, size_t count) {
 }
 
 int sv_save_to_file(String_View sv, const char *file_name) {
-    FILE *file = fopen(file_name, "w");
-    size_t value = fwrite(sv.data, 1, sv.count, file);
-    return value;
+    FILE *file = fopen(file_name, "wb"); // binario
+    if (!file) {
+        perror("fopen");
+        return -1;
+    }
+
+    size_t written = fwrite(sv.data, 1, sv.count, file);
+    if (written != sv.count) {
+        perror("fwrite");
+        fclose(file);
+        return -1;
+    }
+
+    if (fclose(file) != 0) {
+        perror("fclose");
+        return -1;
+    }
+
+    return 0;
 }
 
-void sb_append_buf(String_Builder *sb, void *buf, size_t size) {
+void sb_append_buf(String_Builder *sb, const void *buf, size_t size) {
     da_append_many(sb, buf, size);
 }
 
@@ -179,4 +220,21 @@ void sb_append_cstr(String_Builder *sb, const char *cstr) {
 
 String_View sb_to_sv(String_Builder sb) {
     return sv_from_parts(sb.items, sb.count);
+}
+
+String_Builder sv_to_sb(String_View sv) {
+    String_Builder result = {0};
+    da_reserve(&result, sv.count);
+    memcpy(result.items, sv.data, sv.count);
+    result.count = sv.count;
+    return result;
+}
+
+String_Builder sv_to_sb_null(String_View sv) {
+    String_Builder result = {0};
+    da_reserve(&result, sv.count + 1);
+    memcpy(result.items, sv.data, sv.count);
+    result.count = sv.count;
+    result.items[result.count] = '\0';
+    return result;
 }

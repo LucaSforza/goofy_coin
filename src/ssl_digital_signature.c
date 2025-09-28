@@ -125,6 +125,7 @@ cleanup:
 int ds_signature(String_View secret, String_View message, String_Builder *sign) {
     if (!secret.data || !message.data || !sign) {
         print_openssl_error("arguments are NULL", __FILE__, __LINE__);
+        printf("secret pointer: %p message pointer: %p sign pointer: %p\n", secret.data, message.data, sign);
         return 1;
     }
     int rc = 1;
@@ -177,7 +178,7 @@ int ds_signature(String_View secret, String_View message, String_Builder *sign) 
         goto cleanup;
     }
 
-    sb_append_buf(sign, (const char *)sig_buf, siglen);
+    sb_append_buf(sign, sig_buf, siglen);
     // sb_append_null(sign);
 
     free(sig_buf);
@@ -193,6 +194,7 @@ cleanup:
 int ds_isValid(String_View publicKey, String_View message, String_View sign) {
     if (!publicKey.data || !message.data || !sign.data) {
         print_openssl_error("arguments are NULL", __FILE__, __LINE__);
+        printf("public pointer: %p message pointer: %p sign pointer: %p\n", publicKey.data, message.data, sign);
         return -1;
     }
     int rc = -1;

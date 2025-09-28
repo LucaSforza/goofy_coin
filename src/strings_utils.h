@@ -75,7 +75,7 @@ SUDEF void sb_append_null(String_Builder *sb);
 // Append a NULL-terminated string to a string builder
 SUDEF void sb_append_cstr(String_Builder *sb, const char *cstr);
 // Append a sized buffer to a string builder
-SUDEF void sb_append_buf(String_Builder *sb, void *buf, size_t size);
+SUDEF void sb_append_buf(String_Builder *sb, const void *buf, size_t size);
 
 typedef struct {
     size_t count;
@@ -83,6 +83,7 @@ typedef struct {
 } String_View;
 
 SUDEF String_View sv_chop_by_delim(String_View *sv, char delim);
+SUDEF String_View sv_chop_by_spaces(String_View *sv);
 SUDEF String_View sv_chop_left(String_View *sv, size_t n);
 SUDEF String_View sv_trim(String_View sv);
 SUDEF String_View sv_trim_left(String_View sv);
@@ -95,6 +96,8 @@ SUDEF String_View sv_from_parts(const char *data, size_t count);
 SUDEF int sv_save_to_file(String_View view, const char *file_name);
 // sb_to_sv() enables you to just view String_Builder as String_View
 SUDEF String_View sb_to_sv(String_Builder sb);
+SUDEF String_Builder sv_to_sb(String_View sv);
+SUDEF String_Builder sv_to_sb_null(String_View sv);
 #define sb_free(sb) SU_FREE(sb.items)
 
 #endif // STRINGS_UTILS_H_

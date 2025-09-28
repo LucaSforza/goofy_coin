@@ -2,7 +2,7 @@ all: main
 
 CC = gcc
 CFLAGS = -Wall -Wextra -Wno-deprecated-declarations -Wno-unused-function -ggdb
-LIBS = -lssl -lcrypto
+LIBS = -lssl -lcrypto -lreadline
 
 ssl_digital_signature.o: src/ssl_digital_signature.c
 	$(CC) $(CFLAGS) -c src/ssl_digital_signature.c -o ssl_digital_signature.o $(LIBS)
