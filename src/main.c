@@ -198,6 +198,7 @@ int main(void) {
         while(*input && isspace(*input)) input++;
 
         if(*input) {
+            if(*original_input) free(original_input);
             add_history(input);
         } else continue;
 
