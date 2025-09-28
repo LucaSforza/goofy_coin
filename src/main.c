@@ -3,6 +3,7 @@
 #include <string.h>
 #include <assert.h>
 #include <signal.h>
+#include <ctype.h>
 
 #include <readline/readline.h>
 #include <readline/history.h>
@@ -180,6 +181,8 @@ void execute_command(String_View sv_command, String_View sv_input) {
     }
 }
 
+#define EXIT_STRING "exit"
+
 int main(void) {
     char *input = NULL;
 
@@ -191,11 +194,14 @@ int main(void) {
     control(ds_init());
 
     while((input = readline("> ")) != NULL) {
+        char *original_input = input;
+        while(*input && isspace(*input)) input++;
+
         if(*input) {
             add_history(input);
-        }
+        } else continue;
 
-        if (strcmp(input, "exit") == 0) {
+        if (strncmp(input, EXIT_STRING, sizeof(EXIT_STRING) - 1) == 0) {
             ds_deinit();
             return 0;
         }
@@ -205,7 +211,7 @@ int main(void) {
 
         execute_command(sv_command, sv_input);
         
-        free(input);
+        free(original_input);
     }
     ds_deinit();
     return 0;
