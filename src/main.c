@@ -194,13 +194,16 @@ int main(void) {
     control(ds_init());
 
     while((input = readline("> ")) != NULL) {
+
         char *original_input = input;
         while(*input && isspace(*input)) input++;
 
         if(*input) {
-            if(*original_input) free(original_input);
             add_history(input);
-        } else continue;
+        } else {
+            free(original_input);
+            continue;
+        }
 
         if (strncmp(input, EXIT_STRING, sizeof(EXIT_STRING) - 1) == 0) {
             ds_deinit();
