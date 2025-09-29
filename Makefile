@@ -1,7 +1,7 @@
 all: main
 
 CC = gcc
-CFLAGS = -Wall -Wextra -Wno-deprecated-declarations -Wno-unused-function -ggdb
+CFLAGS = -Wall -Wextra -pedantic -ggdb
 LIBS = -lssl -lcrypto -lreadline
 
 ssl_digital_signature.o: src/ssl_digital_signature.c
