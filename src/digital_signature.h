@@ -57,4 +57,8 @@ DSDEF int ds_init(void);
  */
 DSDEF int ds_deinit(void);
 
+DSDEF int ds_hash(void *object, size_t count, String_Builder *hash);
+
+DSDEF int ds_base64(const unsigned char *in, size_t in_size,
+                    String_Builder *out);
 #endif // DIGITAL_SIGNATURE_H_

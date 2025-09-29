@@ -185,6 +185,26 @@ void execute_command(String_View sv_command, String_View sv_input) {
     sb_free(sb_signature_path);
     sb_free(sb_message_path);
 
+  } else if (sv_eq(sv_command, sv_from_cstr("hash"))) {
+    String_Builder sb_file_path = sv_to_sb_null(sv_chop_by_spaces(&sv_input));
+    if (sb_file_path.count == 0) {
+      printf("[ERROR] please provide the path to the public key\n");
+      return;
+    }
+    String_Builder file_content = {0};
+    String_Builder hash = {0};
+    String_Builder out = {0};
+
+    sb_read_entire_file(sb_file_path.items, &file_content);
+    ds_hash(file_content.items, file_content.count, &hash);
+    ds_base64((unsigned char *)hash.items, hash.count, &out);
+    printf("Hash:%s\n", out.items);
+
+    sb_free(hash);
+    sb_free(file_content);
+    sb_free(sb_file_path);
+    sb_free(out);
+
   } else {
     String_Builder sb_cmd = sv_to_sb_null(sv_command);
     printf("[ERROR] command not recognised: %s\n", sb_cmd.items);

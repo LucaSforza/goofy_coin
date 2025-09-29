@@ -1,8 +1,8 @@
 all: main
 
 CC = gcc
-CFLAGS = -Wall -Wextra -pedantic -ggdb
-LIBS = -lssl -lcrypto -lreadline
+CFLAGS = -Wall -Wextra -pedantic -ggdb 
+LIBS = -lssl -lcrypto -lreadline -lm
 
 ssl_digital_signature.o: src/ssl_digital_signature.c
 	$(CC) $(CFLAGS) -c src/ssl_digital_signature.c -o ssl_digital_signature.o $(LIBS)

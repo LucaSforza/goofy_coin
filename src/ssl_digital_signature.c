@@ -1,4 +1,6 @@
+#include <math.h>
 #include <openssl/bio.h>
+#include <openssl/core_names.h>
 #include <openssl/err.h>
 #include <openssl/evp.h>
 #include <openssl/pem.h>
@@ -6,6 +8,7 @@
 #include <openssl/ssl.h>
 
 #include "digital_signature.h"
+#include "strings_utils.h"
 //
 #include <stddef.h>
 #include <stdio.h>
@@ -258,3 +261,79 @@ cleanup:
   EVP_PKEY_free(pkey);
   return rc;
 }
+
+int sha256_bytes(const unsigned char *in, size_t inlen,
+                 unsigned char out[EVP_MAX_MD_SIZE]) {
+  int ok = 1;
+  EVP_MD_CTX *ctx = EVP_MD_CTX_new();
+  if (!ctx)
+    return ok;
+
+  // Prefer provider-based fetch (3.x). Fallback to EVP_sha256() for 1.1.1.
+  EVP_MD *md = EVP_MD_fetch(NULL, "SHA256", NULL);
+  const EVP_MD *md_fallback = md ? md : EVP_sha256();
+
+  if (EVP_DigestInit_ex(ctx, md_fallback, NULL) <= 0)
+    goto done;
+  if (EVP_DigestUpdate(ctx, in, inlen) <= 0)
+    goto done;
+  if (EVP_DigestFinal_ex(ctx, out, NULL) <= 0)
+    goto done;
+
+  ok = 0;
+done:
+  EVP_MD_CTX_free(ctx);
+  if (md)
+    EVP_MD_free(md);
+  return ok;
+}
+int ds_hash(void *object, size_t count, String_Builder *hash) {
+  unsigned char hash_result[EVP_MAX_MD_SIZE] = {0};
+  if (sha256_bytes(object, count, hash_result)) {
+    print_openssl_error("sha256_bytes Error.", __FILE__, __LINE__);
+    return 1;
+  }
+  sb_append_buf(hash, hash_result, EVP_MAX_MD_SIZE);
+  return 0;
+}
+
+int ds_base64(const unsigned char *in, size_t in_size, String_Builder *out)
+/* Returns number of Base64 chars written (excluding NUL) on success, 0 on
+   failure. */
+{
+
+  // Base64 length = 4 * ceil(n/3). Need +1 for '\0'.
+  size_t need = 4 * (size_t)ceil((double)in_size / 3) + 1;
+  if (out->capacity < need) {
+    da_reserve(out, need);
+  }
+
+  out->count = need - 1;
+  int written = EVP_EncodeBlock((unsigned char *)out->items, in, in_size);
+
+  if (written <= 0)
+    return 1;
+
+  out->items[need] = '\0';
+  return 0;
+}
+
+/*
+int decobase64(const void *b64_out, size_t b64_out_size,String_Builder* out)
+ Returns number of Base64 chars written (excluding NUL) on success, 0 on
+   failure.
+{
+
+  // Base64 length = 4 * ceil(n/3). Need +1 for '\0'.
+  size_t need = 4 * ((dlen + 2) / 3) + 1;
+  if (b64_out_size < need)
+    return 1;
+
+  int written = EVP_EncodeBlock((unsigned char *)b64_out, digest, (int)dlen);
+  if (written <= 0)
+    return 1;
+
+  b64_out[written] = '\0';
+
+  return 0;
+}*/
